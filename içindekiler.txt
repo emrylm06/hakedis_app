@@ -1,0 +1,60 @@
+KOD BÖLÜMLERİ LİSTESİ
+1. BÖLÜM: UYGULAMA BAŞLANGICI VE TEMEL YAPILANDIRMA
+1.1 Firebase Konfigürasyonu - Import'lar ve main() fonksiyonu
+
+1.2 Provider Kurulumu - Provider yapılandırması
+
+1.3 Ana Widget Yapısı - MyApp sınıfı
+
+2. BÖLÜM: AYARLAR VE VERİ YÖNETİMİ SINIFLARI
+2.1 AppSettings Sınıfı - Uygulama ayarları ve kullanıcı yönetimi
+
+2.2 DataProvider Sınıfı - Tüm veri operasyonları
+
+3. BÖLÜM: KİMLİK DOĞRULAMA SİSTEMİ
+3.1 PasswordScreen State Yönetimi - Giriş ekranı state'i
+
+3.2 Giriş Kontrolleri - UI ve doğrulama mekanizması
+
+4. BÖLÜM: ANA UYGULAMA VE NAVİGASYON
+4.1 MainApp State Yönetimi - Ana uygulama state'i
+
+4.2 BottomNavigationBar Sistemi - Navigasyon ve AppBar'lar
+
+5. BÖLÜM: ANA EKRAN VE RAPORLAMA
+5.1 AnaEkran State Yönetimi - Hesaplamalar ve filtreleme
+
+5.2 Filtreleme Sistemi - Tarih ve araç filtreleri
+
+5.3 PDF Rapor Oluşturma - PDF generation fonksiyonu
+
+5.4 AnaEkran Build Metodu - UI ve tablo yapısı
+
+6. BÖLÜM: TONAJ İŞLEMLERİ MODÜLÜ
+6.1 TonajKayitlari State Yönetimi - Liste yönetimi
+
+6.2 Tonaj Ekleme/Düzenleme - Dialog ve form işlemleri
+
+7. BÖLÜM: GİDER İŞLEMLERİ MODÜLÜ
+7.1 GiderKayitlari State Yönetimi - Gider listesi yönetimi
+
+7.2 Gider Ekleme/Düzenleme - Gider form işlemleri
+
+8. BÖLÜM: CARİ HESAP MODÜLÜ
+8.1 CariSayfasi State Yönetimi - Cari state ve bakiye hesaplama
+
+8.2 Fatura İşlemleri - Fatura ekleme/düzenleme
+
+8.3 Tahsilat İşlemleri - Tahsilat ve PDF raporlama
+
+9. BÖLÜM: PERSONEL YÖNETİMİ MODÜLÜ
+9.1 PersonelSayfasi State Yönetimi - Personel state yönetimi
+
+9.2 Maaş Tahakkuk İşlemleri - Tahakkuk ekleme/düzenleme
+
+9.3 Maaş Ödeme İşlemleri - Ödeme ve PDF raporlama
+
+10. BÖLÜM: SİSTEM AYARLARI MODÜLÜ
+10.1 AyarlarSayfasi State Yönetimi - Ayarlar state yönetimi
+
+10.2 Kullanıcı Yönetimi - UI bileşenleri ve kart yapısı

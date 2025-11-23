@@ -1,0 +1,29 @@
+name: hakedis_app
+description: Hakediş Takip Uygulaması
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=2.18.0 <3.0.0'  # Bu satırı bu şekilde değiştirin
+
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_core: ^2.32.0
+  cloud_firestore: ^4.17.5
+  shared_preferences: ^2.2.2
+  intl: ^0.18.1
+  provider: ^6.1.1
+  printing: ^5.11.0
+  pdf: ^3.10.4
+  path_provider: ^2.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.3  # Bu satırı bu şekilde değiştirin
+
+flutter:
+  uses-material-design: true
