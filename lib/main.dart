@@ -1,7 +1,7 @@
 // 1.1 Firebase Konfigürasyonu ******************************************************************
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // YENİ EKLENDİ
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -11,7 +11,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'dart:convert';
-
+import 'package:share_plus/share_plus.dart';
+import 'package:printing/printing.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +29,6 @@ void main() async {
   runApp(MyApp());
 }
 // 1.1 Firebase Konfigürasyonu SONU ******************************************************************
-
 // 1.2 Provider Kurulumu ******************************************************************
 // Provider kurulumu MyApp sınıfı içinde MultiProvider ile yapılmaktadır
 // Bu bölüm MyApp sınıfının provider kısmını içerir
@@ -105,8 +105,11 @@ class AppSettings with ChangeNotifier {
   bool get isAdmin => _isAdmin;
   String get selectedUserForAdmin => _selectedUserForAdmin;
 
+  // YENİ CONSTRUCTOR
   AppSettings() {
-    _loadSettings();
+    _loadSettings().then((_) {
+      loadUsersFromFirebase(); // Firebase'den kullanıcıları yükle
+    });
   }
 
   Future<void> _loadSettings() async {
@@ -120,13 +123,8 @@ class AppSettings with ChangeNotifier {
     _sonAracFiltresi = prefs.getString('sonAracFiltresi') ?? 'Tümü';
     _currentUser = prefs.getString('currentUser') ?? '';
 
-    // DEBUG: SharedPreferences'tan okunan isAdmin değerini kontrol et
-    // ÖNEMLİ DÜZELTME: isAdmin değerini doğru şekilde yükle
     final savedIsAdmin = prefs.getBool('isAdmin');
-    print('🔍 _loadSettings - SharedPreferences isAdmin: $savedIsAdmin');
-// Eğer currentUser 'admin' ise, otomatik olarak admin yap
     _isAdmin = savedIsAdmin ?? (_currentUser == 'admin');
-    print('🔍 _loadSettings - Sonuç isAdmin: $_isAdmin');
 
     _selectedUserForAdmin = prefs.getString('selectedUserForAdmin') ?? '';
 
@@ -138,13 +136,6 @@ class AppSettings with ChangeNotifier {
       ));
     }
 
-    // DEBUG: Yüklenen değerleri yazdır
-    print('📥 _loadSettings SONUÇ:');
-    print('  - _currentUser: $_currentUser');
-    print('  - _isAdmin: $_isAdmin');
-    print('  - _selectedUserForAdmin: $_selectedUserForAdmin');
-
-    // Kullanıcı ayarlarını yükle
     if (_currentUser.isNotEmpty) {
       await _loadUserSettings();
     }
@@ -205,39 +196,18 @@ class AppSettings with ChangeNotifier {
     notifyListeners();
   }
 
-  // DÜZELTİLMİŞ setCurrentUser metodu
   void setCurrentUser(String username, bool isAdmin) async {
-    print('=== SET CURRENT USER (DÜZELTİLMİŞ) ===');
-
-    // Memory'de tut
     _currentUser = username;
     _isAdmin = isAdmin;
     _selectedUserForAdmin = isAdmin ? '' : username;
 
-    print('🎯 MEMORY DEĞİŞKENLERİ:');
-    print('  - _currentUser: $_currentUser');
-    print('  - _isAdmin: $_isAdmin');
-    print('  - _selectedUserForAdmin: $_selectedUserForAdmin');
-
-    // SHAREDPREFERENCES'A KAYDET - BU ÇOK ÖNEMLİ!
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('currentUser', _currentUser);
     await prefs.setBool('isAdmin', _isAdmin);
     await prefs.setString('selectedUserForAdmin', _selectedUserForAdmin);
 
-    print('💾 SharedPreferences kaydedildi:');
-    print('  - currentUser: $_currentUser');
-    print('  - isAdmin: $_isAdmin');
-    print('  - selectedUserForAdmin: $_selectedUserForAdmin');
-
-    // Kullanıcı ayarlarını yükle
     await _loadUserSettings();
-
-    print('📢 NOTIFY LISTENERS ÇAĞRILIYOR');
     notifyListeners();
-
-    print('✅ MEMORY VE SHAREDPREFERENCES GÜNCELLENDİ');
-    print('=== SET CURRENT USER TAMAMLANDI ===');
   }
 
   void setSelectedUserForAdmin(String username) async {
@@ -248,14 +218,16 @@ class AppSettings with ChangeNotifier {
   }
 
   void addKullanici(String username, String password) {
-    print('➕ Kullanıcı ekleniyor: $username');
     _kullanicilar[username] = {
       'password': password,
       'createdAt': DateTime.now().toIso8601String(),
     };
     _saveKullanicilar();
+
+    // YENİ: Firebase'e de kaydet
+    addUserToFirebase(username, password);
+
     notifyListeners();
-    print('✅ Kullanıcı eklendi: $username, Toplam: ${_kullanicilar.length}');
   }
 
   void removeKullanici(String username) {
@@ -347,6 +319,45 @@ class AppSettings with ChangeNotifier {
     }
     return _currentUser;
   }
+
+  // YENİ FIREBASE METODLARI - SADELEŞTİRİLMİŞ
+  Future<void> addUserToFirebase(String username, String password) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(username).set({
+        'username': username,
+        'password': password,
+        'userType': 'user',
+        'createdAt': FieldValue.serverTimestamp(),
+        'createdBy': _currentUser,
+      });
+      print('✅ Kullanıcı Firebase\'e kaydedildi: $username');
+    } catch (e) {
+      print('❌ Firebase kullanıcı kaydetme hatası: $e');
+    }
+  }
+
+  Future<void> loadUsersFromFirebase() async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance.collection('users').get();
+
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final username = data['username'];
+        if (!_kullanicilar.containsKey(username)) {
+          _kullanicilar[username] = {
+            'password': data['password'],
+            'userType': data['userType'] ?? 'user',
+          };
+        }
+      }
+
+      await _saveKullanicilar();
+      notifyListeners();
+      print('✅ Firebase\'den kullanıcılar yüklendi');
+    } catch (e) {
+      print('❌ Firebase kullanıcı yükleme hatası: $e');
+    }
+  }
 }
 // 2.1 AppSettings Sınıfı SONU ******************************************************************
 
@@ -368,6 +379,10 @@ class DataProvider with ChangeNotifier {
   List<Map<String, dynamic>> get maasTahakkuklari => _maasTahakkuklari;
   List<Map<String, dynamic>> get maasOdemeleri => _maasOdemeleri;
 
+  DataProvider() {
+    loadAllData();
+  }
+
   // Firestore'dan verileri yükle
   Future<void> loadAllData() async {
     await _loadTonajKayitlari();
@@ -380,92 +395,144 @@ class DataProvider with ChangeNotifier {
 
   Future<void> _loadTonajKayitlari() async {
     try {
-      final snapshot = await _firestore.collection('tonajKayitlari').orderBy('tarih', descending: true).get();
+      final currentUser = _getUserField();
+      final snapshot = await _firestore
+          .collection('tonajKayitlari')
+          .where('userId', isEqualTo: currentUser)
+          .orderBy('tarih', descending: true)
+          .get();
+
       _tonajKayitlari = snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
         return data;
       }).toList();
+
       notifyListeners();
+      print('✅ Tonaj kayıtları yüklendi: ${_tonajKayitlari.length} kayıt (Kullanıcı: $currentUser)');
     } catch (e) {
-      print('Tonaj kayıtları yüklenirken hata: $e');
+      print('❌ Tonaj kayıtları yüklenirken hata: $e');
     }
   }
 
   Future<void> _loadGiderKayitlari() async {
     try {
-      final snapshot = await _firestore.collection('giderKayitlari').orderBy('tarih', descending: true).get();
+      final currentUser = _getUserField();
+      final snapshot = await _firestore
+          .collection('giderKayitlari')
+          .where('userId', isEqualTo: currentUser)
+          .orderBy('tarih', descending: true)
+          .get();
+
       _giderKayitlari = snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
         return data;
       }).toList();
+
       notifyListeners();
     } catch (e) {
-      print('Gider kayıtları yüklenirken hata: $e');
+      print('❌ Gider kayıtları yüklenirken hata: $e');
     }
   }
 
   Future<void> _loadFaturaKayitlari() async {
     try {
-      final snapshot = await _firestore.collection('faturaKayitlari').orderBy('tarih', descending: true).get();
+      final currentUser = _getUserField();
+      final snapshot = await _firestore
+          .collection('faturaKayitlari')
+          .where('userId', isEqualTo: currentUser)
+          .orderBy('tarih', descending: true)
+          .get();
+
       _faturaKayitlari = snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
         return data;
       }).toList();
+
       notifyListeners();
     } catch (e) {
-      print('Fatura kayıtları yüklenirken hata: $e');
+      print('❌ Fatura kayıtları yüklenirken hata: $e');
     }
   }
 
   Future<void> _loadTahsilatKayitlari() async {
     try {
-      final snapshot = await _firestore.collection('tahsilatKayitlari').orderBy('tarih', descending: true).get();
+      final currentUser = _getUserField();
+      final snapshot = await _firestore
+          .collection('tahsilatKayitlari')
+          .where('userId', isEqualTo: currentUser)
+          .orderBy('tarih', descending: true)
+          .get();
+
       _tahsilatKayitlari = snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
         return data;
       }).toList();
+
       notifyListeners();
     } catch (e) {
-      print('Tahsilat kayıtları yüklenirken hata: $e');
+      print('❌ Tahsilat kayıtları yüklenirken hata: $e');
     }
   }
 
   Future<void> _loadMaasTahakkuklari() async {
     try {
-      final snapshot = await _firestore.collection('maasTahakkuklari').orderBy('tarih', descending: true).get();
+      final currentUser = _getUserField();
+      final snapshot = await _firestore
+          .collection('maasTahakkuklari')
+          .where('userId', isEqualTo: currentUser)
+          .orderBy('tarih', descending: true)
+          .get();
+
       _maasTahakkuklari = snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
         return data;
       }).toList();
+
       notifyListeners();
     } catch (e) {
-      print('Maaş tahakkukları yüklenirken hata: $e');
+      print('❌ Maaş tahakkukları yüklenirken hata: $e');
     }
   }
 
   Future<void> _loadMaasOdemeleri() async {
     try {
-      final snapshot = await _firestore.collection('maasOdemeleri').orderBy('tarih', descending: true).get();
+      final currentUser = _getUserField();
+      final snapshot = await _firestore
+          .collection('maasOdemeleri')
+          .where('userId', isEqualTo: currentUser)
+          .orderBy('tarih', descending: true)
+          .get();
+
       _maasOdemeleri = snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
         return data;
       }).toList();
+
       notifyListeners();
     } catch (e) {
-      print('Maaş ödemeleri yüklenirken hata: $e');
+      print('❌ Maaş ödemeleri yüklenirken hata: $e');
     }
   }
 
   // Kullanıcı bazlı veri işlemleri
   String _getUserField() {
-    final settings = Provider.of<AppSettings>(navigatorKey.currentContext!, listen: false);
-    return settings.getEffectiveUser();
+    try {
+      if (navigatorKey.currentContext == null) {
+        print('⚠️ Context null, varsayılan kullanıcı döndürülüyor');
+        return 'admin';
+      }
+      final settings = Provider.of<AppSettings>(navigatorKey.currentContext!, listen: false);
+      return settings.getEffectiveUser();
+    } catch (e) {
+      print('⚠️ Kullanıcı bilgisi alınamadı: $e');
+      return 'admin';
+    }
   }
 
   // Tonaj kaydı ekle - FIREBASE'E YAZMA
@@ -476,6 +543,7 @@ class DataProvider with ChangeNotifier {
       kayit['id'] = docRef.id;
       _tonajKayitlari.insert(0, kayit);
       notifyListeners();
+      print('✅ Tonaj kaydı eklendi: ${kayit['aracKodu']} - ${kayit['toplamNet']} ton');
     } catch (e) {
       kayit['userId'] = _getUserField();
       _tonajKayitlari.insert(0, kayit);
@@ -6967,4 +7035,4 @@ void _showCariSilmeOnayDialog(BuildContext context, String cari) {
 // 10.2 Kullanıcı Yönetimi SONU ******************************************************************
 
 // 10. BÖLÜM SONU ******************************************************************
-//emrah
+//emrahxx
